@@ -539,13 +539,19 @@ class MusicPlayerApp {
                 return;
             }
             
+            // 将 HTTP 链接转换为 HTTPS
+            let downloadUrl = urlData.url;
+            if (downloadUrl.startsWith('http://')) {
+                downloadUrl = downloadUrl.replace('http://', 'https://');
+            }
+            
             console.log('开始下载:', song.name);
             alert(`正在下载: ${song.name}`);
             
             // 创建隐藏的 iframe 来下载文件
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
-            iframe.src = urlData.url;
+            iframe.src = downloadUrl;
             document.body.appendChild(iframe);
             
             // 5秒后移除 iframe
@@ -628,14 +634,19 @@ class MusicPlayerApp {
                 return;
             }
             
-            // 显示下载提示
+            // 将 HTTP 链接转换为 HTTPS
+            let downloadUrl = urlData.url;
+            if (downloadUrl.startsWith('http://')) {
+                downloadUrl = downloadUrl.replace('http://', 'https://');
+            }
+            
             console.log('开始下载:', song.name);
             alert(`正在下载: ${song.name}`);
             
             // 创建隐藏的 iframe 来下载文件
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
-            iframe.src = urlData.url;
+            iframe.src = downloadUrl;
             document.body.appendChild(iframe);
             
             // 5秒后移除 iframe
