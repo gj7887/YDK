@@ -360,7 +360,10 @@ class MusicPlayerApp {
                         <div class="artist">${song.artist}</div>
                         <div class="actions">
                             <button class="play-btn" onclick="app.handleResultPlay(${index})">▶ 播放</button>
+                            <button class="download-btn" onclick="app.handleResultDownload(${index})">⬇ 下载</button>
                         </div>
+
+
 
                     </div>
                 `).join('')}
@@ -504,9 +507,11 @@ class MusicPlayerApp {
                     <div class="playlist-item-title">${song.name}</div>
                     <div class="playlist-item-artist">${song.artist}</div>
                 </div>
+                <button class="download-btn-small" title="下载" onclick="event.stopPropagation(); app.downloadSong(${index})">⬇</button>
             </div>
         `).join('');
     }
+
 
 
     ensureSongInPlaylist(song) {
@@ -530,9 +535,18 @@ class MusicPlayerApp {
         }
     }
 
+    handleResultDownload(resultIndex) {
+        if (resultIndex < 0 || resultIndex >= this.searchResults.length) return;
+        const playlistIndex = this.ensureSongInPlaylist(this.searchResults[resultIndex]);
+        if (playlistIndex !== -1) {
+            this.downloadSong(playlistIndex);
+        }
+    }
+
 
 
     async playSong(index) {
+
         if (index < 0 || index >= this.playlist.length) return;
         
         this.currentSongIndex = index;
@@ -587,8 +601,32 @@ class MusicPlayerApp {
         }
     }
 
+    async downloadSong(index) {
+        if (index < 0 || index >= this.playlist.length) return;
+        const song = this.playlist[index];
+        try {
+            const quality = document.getElementById('qualitySelect').value || '999';
+            const urlData = await musicAPI.getMusicUrl(song.id, song.source, quality);
+            if (!urlData.url) {
+                alert('无法获取下载链接');
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = urlData.url;
+            link.download = `${song.name} - ${song.artist}.mp3`;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('下载音乐失败:', error);
+            alert('下载音乐失败，请稍后重试');
+        }
+    }
+
     updatePlayerInfo() {
         if (!this.currentSong) return;
+
         
         const titleEl = document.getElementById('songTitle');
         if (titleEl) {
