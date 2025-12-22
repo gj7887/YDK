@@ -7,7 +7,17 @@ class MusicPlayerApp {
         this.searchResults = []; // 新增：存储搜索结果
         this.isPlaying = false;
         this.audioPlayer = document.getElementById('audioPlayer');
-        this.theme = 'dark'; // 默认暗黑主题
+        this.themeStorageKey = 'musicPlayer_theme';
+        this.defaultBackgrounds = {
+            dark: 'linear-gradient(135deg, #05050f 0%, #111827 45%, #312e81 100%)',
+            light: 'linear-gradient(135deg, #fdf2f8 0%, #dbeafe 45%, #c4b5fd 100%)'
+        };
+        this.defaultGlowColors = {
+            dark: 'rgba(94, 234, 212, 0.4)',
+            light: 'rgba(147, 197, 253, 0.45)'
+        };
+        this.lastDominantColor = null;
+        this.theme = this.loadTheme();
         this.currentSource = 'netease'; // 当前数据源（默认网易云）
         this.currentPage = 1; // 当前页码
         this.totalPages = 1; // 总页数
@@ -31,6 +41,7 @@ class MusicPlayerApp {
         // 新增：收藏列表
         this.favorites = this.loadFavorites();
         
+        this.applyTheme(this.theme);
         this.initEventListeners();
         this.initPlayerEvents();
         this.updatePlayModeButton();
@@ -48,6 +59,44 @@ class MusicPlayerApp {
         
         // 初始化媒体会话控制
         this.initMediaSession();
+    }
+
+    loadTheme() {
+        try {
+            const storedTheme = localStorage.getItem(this.themeStorageKey);
+            if (storedTheme === 'light' || storedTheme === 'dark') {
+                return storedTheme;
+            }
+        } catch (error) {
+            console.warn('无法读取主题设置:', error);
+        }
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+        }
+        return 'light';
+    }
+
+    saveTheme(theme) {
+        try {
+            localStorage.setItem(this.themeStorageKey, theme);
+        } catch (error) {
+            console.warn('无法保存主题设置:', error);
+        }
+    }
+
+    applyTheme(theme) {
+        const body = document.body;
+        body.classList.remove('light-theme', 'dark-theme');
+        body.classList.add(`${theme}-theme`);
+        const themeIcon = document.getElementById('themeIcon');
+        if (themeIcon) {
+            themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        if (this.lastDominantColor) {
+            this.applyBackground(this.lastDominantColor);
+        } else {
+            this.resetBackground();
+        }
     }
 
     // 新增：加载播放模式
@@ -576,39 +625,73 @@ class MusicPlayerApp {
 
     // 根据专辑封面自动取色并更新背景
     updateBackgroundFromImage(imageSrc) {
+        if (!imageSrc) {
+            this.resetBackground();
+            return;
+        }
         const img = new Image();
         img.crossOrigin = "Anonymous";
         img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            
-            // 获取中心区域的颜色
-            const centerX = Math.floor(img.width / 2);
-            const centerY = Math.floor(img.height / 2);
-            const pixel = ctx.getImageData(centerX, centerY, 1, 1).data;
-            
-            // 转换为RGBA颜色值
-            const [r, g, b] = pixel;
-            const color = `rgb(${r}, ${g}, ${b})`;
-            
-            // 应用到背景
-            this.applyBackground(color);
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                if (!ctx) {
+                    this.resetBackground();
+                    return;
+                }
+                const width = Math.max(1, img.width);
+                const height = Math.max(1, img.height);
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                const sampleWidth = Math.max(1, Math.floor(width * 0.6));
+                const sampleHeight = Math.max(1, Math.floor(height * 0.6));
+                const startX = Math.floor((width - sampleWidth) / 2);
+                const startY = Math.floor((height - sampleHeight) / 2);
+                const imageData = ctx.getImageData(startX, startY, sampleWidth, sampleHeight).data;
+                let totalR = 0;
+                let totalG = 0;
+                let totalB = 0;
+                let count = 0;
+                const totalPixels = imageData.length / 4;
+                const stridePixels = Math.max(1, Math.floor(totalPixels / 1500));
+                for (let i = 0; i < imageData.length; i += stridePixels * 4) {
+                    const alpha = imageData[i + 3];
+                    if (alpha < 128) continue;
+                    totalR += imageData[i];
+                    totalG += imageData[i + 1];
+                    totalB += imageData[i + 2];
+                    count++;
+                }
+                if (count === 0) {
+                    this.resetBackground();
+                    return;
+                }
+                const dominantColor = `rgb(${Math.round(totalR / count)}, ${Math.round(totalG / count)}, ${Math.round(totalB / count)})`;
+                this.applyBackground(dominantColor);
+            } catch (error) {
+                console.warn('无法从专辑封面提取颜色:', error);
+                this.resetBackground();
+            }
         };
+        img.onerror = () => this.resetBackground();
         img.src = imageSrc;
     }
+
 
     // 应用背景颜色
     applyBackground(color) {
         const body = document.body;
-        // 创建渐变背景，基于主色调
-        body.style.background = `linear-gradient(135deg, 
-            ${this.adjustColor(color, -20)}, 
-            ${this.adjustColor(color, -40)}, 
-            ${this.adjustColor(color, -60)})`;
+        const firstStop = this.adjustColor(color, this.theme === 'dark' ? 35 : 60);
+        const middleStop = this.adjustColor(color, this.theme === 'dark' ? 5 : 30);
+        const finalStop = this.adjustColor(color, this.theme === 'dark' ? -35 : 0);
+        const gradient = `linear-gradient(135deg, ${firstStop} 0%, ${middleStop} 50%, ${finalStop} 100%)`;
+        const glowBase = this.adjustColor(color, this.theme === 'dark' ? 55 : -15);
+        body.style.setProperty('--immersive-bg', gradient);
+        body.style.setProperty('--immersive-glow', this.convertRgbToRgba(glowBase, this.theme === 'dark' ? 0.5 : 0.35));
+        this.lastDominantColor = color;
     }
+
 
     // 调整颜色亮度
     adjustColor(color, amount) {
@@ -628,30 +711,30 @@ class MusicPlayerApp {
         return `rgb(${r}, ${g}, ${b})`;
     }
 
+    convertRgbToRgba(color, alpha) {
+        const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (!match) return color;
+        const [, r, g, b] = match;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
     // 重置为默认背景
     resetBackground() {
-        const body = document.body;
-        if (this.theme === 'dark') {
-            body.style.background = 'linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c)';
-        } else {
-            body.style.background = 'linear-gradient(135deg, #6a11cb, #2575fc, #6a11cb)';
-        }
+        const fallbackGradient = this.defaultBackgrounds[this.theme] || this.defaultBackgrounds.dark;
+        const fallbackGlow = this.defaultGlowColors[this.theme] || this.defaultGlowColors.dark;
+        document.body.style.setProperty('--immersive-bg', fallbackGradient);
+        document.body.style.setProperty('--immersive-glow', fallbackGlow);
+        this.lastDominantColor = null;
     }
+
 
     // 切换主题
     toggleTheme() {
         this.theme = this.theme === 'dark' ? 'light' : 'dark';
-        document.body.classList.toggle('light-theme');
-        
-        // 更新主题切换按钮图标
-        const themeIcon = document.getElementById('themeIcon');
-        themeIcon.textContent = this.theme === 'dark' ? '☀️' : '🌙';
-        
-        // 如果没有正在播放的歌曲，重置背景
-        if (!this.currentSong) {
-            this.resetBackground();
-        }
+        this.saveTheme(this.theme);
+        this.applyTheme(this.theme);
     }
+
 
     // 新增：解析歌词文本为时间轴对象数组
     parseLyrics(lyricText) {

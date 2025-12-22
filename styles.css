@@ -6,14 +6,67 @@
     --muted: #6b7280;
     --accent: #111827;
     --border: rgba(15,23,42,0.06);
-    --glass-blur: 8px;
+    --glass-blur: 18px;
+    --immersive-bg: linear-gradient(135deg, #fdf2f8 0%, #dbeafe 45%, #c4b5fd 100%);
+    --immersive-glow: rgba(147,197,253,0.45);
 }
 
-body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+body{
+    font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+    background-color:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    margin:0;
+    overflow-x:hidden;
+    transition:color 0.25s ease, background-color 0.45s ease;
+    position:relative;
+}
+
+body::before{
+    content:'';
+    position:fixed;
+    inset:0;
+    background:var(--immersive-bg);
+    z-index:-2;
+    transition:background 0.8s ease;
+}
+
+body::after{
+    content:'';
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    background:
+        radial-gradient(circle at 20% 20%, var(--immersive-glow), transparent 55%),
+        radial-gradient(circle at 80% 0%, rgba(255,255,255,0.15), transparent 60%),
+        radial-gradient(circle at 0% 70%, rgba(255,255,255,0.12), transparent 50%);
+    opacity:0.65;
+}
 
 /* Dark theme overrides */
-.light-theme{--bg:#f6f7fb;--panel-bg:rgba(255,255,255,0.75);--text:#0f172a;--muted:#6b7280;--accent:#111827;--border:rgba(15,23,42,0.06)}
-.dark-theme, body.dark-theme{--bg:#0b1020;--panel-bg:rgba(255,255,255,0.06);--text:#e6eef8;--muted:#9aa6bd;--accent:#60a5fa;--border:rgba(255,255,255,0.06)}
+body.light-theme{
+    --bg:#f6f7fb;
+    --panel-bg:rgba(255,255,255,0.75);
+    --text:#0f172a;
+    --muted:#6b7280;
+    --accent:#111827;
+    --border:rgba(15,23,42,0.06);
+    --immersive-bg:linear-gradient(135deg,#fdf2f8 0%,#dbeafe 45%,#c4b5fd 100%);
+    --immersive-glow:rgba(147,197,253,0.45);
+}
+
+body.dark-theme{
+    --bg:#050514;
+    --panel-bg:rgba(9,14,35,0.75);
+    --text:#e6eef8;
+    --muted:#9aa6bd;
+    --accent:#60a5fa;
+    --border:rgba(255,255,255,0.08);
+    --immersive-bg:linear-gradient(135deg,#05050f 0%,#111827 45%,#312e81 100%);
+    --immersive-glow:rgba(94,234,212,0.4);
+}
 
 .simple-app{max-width:980px;margin:28px auto;padding:20px}
 .simple-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
@@ -52,8 +105,10 @@ body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);colo
 
 @media (max-width:600px){.simple-app{margin:12px;padding:12px}.player-footer{flex-direction:column;align-items:stretch}.now{width:100%}}
 /* ======= Glass player card layout ======= */
-.app-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px;background:linear-gradient(180deg,#052b2b 0%,#042627 60%)}
-.player-card{width:980px;max-width:96%;background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));border-radius:16px;padding:20px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 8px 30px rgba(2,6,23,0.6);backdrop-filter: blur(12px);color:var(--text)}
+.app-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px;position:relative;z-index:1;width:100%}
+.player-card{width:980px;max-width:96%;background:var(--panel-bg);border-radius:24px;padding:28px;border:1px solid var(--border);box-shadow:0 35px 120px rgba(2,6,23,0.55);backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));color:var(--text);transition:background 0.6s ease,border-color 0.3s ease,color 0.3s ease;position:relative;overflow:hidden}
+.player-card>*{position:relative;z-index:1}
+.player-card::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(145deg,rgba(255,255,255,0.08),transparent 60%);opacity:0.8;pointer-events:none;z-index:0}
 .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .brand{font-family: Georgia, 'Times New Roman', serif;color:#63f6d6;letter-spacing:1px}
 .card-search{display:flex;gap:10px;align-items:center;margin-bottom:14px}
@@ -67,7 +122,7 @@ body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);colo
 .center{flex:1}
 .right{width:260px}
 
-.album-card{background:linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.2));border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column;align-items:center;gap:12px}
+.album-card{background:var(--panel-bg);border-radius:16px;padding:16px;border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 20px 65px rgba(2,6,23,0.45);backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));transition:background 0.6s ease,border-color 0.3s ease,color 0.3s ease}
 .album-card img{width:220px;height:220px;object-fit:cover;border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,0.6)}
 .album-card .meta{width:100%;text-align:center}
 .album-card #songTitle{font-size:16px;color:#dffdf7}
@@ -79,7 +134,7 @@ body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);colo
 .music-card .title{color:#e8fff9}
 .music-card .artist{color:#9ad6c8}
 
-.lyrics-box{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:10px;border:1px solid rgba(255,255,255,0.02);height:360px;display:flex;flex-direction:column}
+.lyrics-box{background:var(--panel-bg);border-radius:16px;padding:16px;border:1px solid var(--border);height:360px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(2,6,23,0.35);backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));transition:background 0.6s ease,border-color 0.3s ease,color 0.3s ease}
 .lyrics-header{font-weight:700;color:#9eeadf;margin-bottom:8px}
 .lyrics-scroll{overflow:auto;flex:1;padding-right:6px;color:#dffdf7}
 .no-lyrics{color:#9aa6a1}
@@ -683,6 +738,14 @@ body.light-theme .volume-slider {
 .visualizer-container {
     margin-top: 20px;
     text-align: center;
+    padding: 16px;
+    border-radius: 16px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    box-shadow: 0 18px 50px rgba(2,6,23,0.35);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    transition: background 0.6s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 .visualizer-container h3 {
@@ -692,13 +755,15 @@ body.light-theme .volume-slider {
 #visualizer {
     width: 100%;
     height: 100px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    border: 1px solid var(--border);
 }
 
 body.light-theme #visualizer {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.08);
 }
+
 
 /* 播放列表面板 */
 .playlist-toggle {
@@ -724,20 +789,22 @@ body.light-theme #visualizer {
     top: 0;
     width: 320px;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
-    padding: 20px;
-    transition: right 0.3s ease;
+    background: var(--panel-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    padding: 24px;
+    transition: right 0.3s ease, background 0.6s ease, border-color 0.3s ease;
     overflow-y: auto;
     z-index: 1000;
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 1px solid var(--border);
+    box-shadow: -12px 0 40px rgba(2,6,23,0.35);
+    color: var(--text);
 }
 
 body.light-theme .playlist-panel {
-    background: rgba(255, 255, 255, 0.8);
-    border-left: 1px solid rgba(0, 0, 0, 0.1);
     color: #333;
 }
+
 
 .playlist-panel.open {
     right: 0;
