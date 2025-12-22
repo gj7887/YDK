@@ -540,42 +540,19 @@ class MusicPlayerApp {
             }
             
             console.log('开始下载:', song.name);
+            alert(`正在下载: ${song.name}`);
             
-            // 尝试通过 fetch 下载并创建 blob URL
-            try {
-                const response = await fetch(urlData.url);
-                if (!response.ok) throw new Error('下载失败');
-                
-                const blob = await response.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                
-                const link = document.createElement('a');
-                link.href = blobUrl;
-                link.download = `${song.name} - ${song.artist}.mp3`;
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                // 延迟释放 blob URL
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-                
-                alert(`正在下载: ${song.name}`);
-            } catch (fetchError) {
-                console.warn('通过 fetch 下载失败，尝试直接下载:', fetchError);
-                
-                // 回退到直接下载链接
-                const link = document.createElement('a');
-                link.href = urlData.url;
-                link.download = `${song.name} - ${song.artist}.mp3`;
-                link.target = '_blank';
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                alert(`下载链接已打开，请在新窗口中保存文件`);
-            }
+            // 创建隐藏的 iframe 来下载文件
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = urlData.url;
+            document.body.appendChild(iframe);
+            
+            // 5秒后移除 iframe
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 5000);
+            
         } catch (error) {
             console.error('下载音乐失败:', error);
             alert('下载音乐失败，请稍后重试');
@@ -653,42 +630,19 @@ class MusicPlayerApp {
             
             // 显示下载提示
             console.log('开始下载:', song.name);
+            alert(`正在下载: ${song.name}`);
             
-            // 尝试通过 fetch 下载并创建 blob URL
-            try {
-                const response = await fetch(urlData.url);
-                if (!response.ok) throw new Error('下载失败');
-                
-                const blob = await response.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                
-                const link = document.createElement('a');
-                link.href = blobUrl;
-                link.download = `${song.name} - ${song.artist}.mp3`;
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                // 延迟释放 blob URL
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-                
-                alert(`正在下载: ${song.name}`);
-            } catch (fetchError) {
-                console.warn('通过 fetch 下载失败，尝试直接下载:', fetchError);
-                
-                // 回退到直接下载链接
-                const link = document.createElement('a');
-                link.href = urlData.url;
-                link.download = `${song.name} - ${song.artist}.mp3`;
-                link.target = '_blank';
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                alert(`下载链接已打开，请在新窗口中保存文件`);
-            }
+            // 创建隐藏的 iframe 来下载文件
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = urlData.url;
+            document.body.appendChild(iframe);
+            
+            // 5秒后移除 iframe
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 5000);
+            
         } catch (error) {
             console.error('下载音乐失败:', error);
             alert('下载音乐失败，请稍后重试');
