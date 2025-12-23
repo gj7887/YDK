@@ -32,11 +32,11 @@
             return await resp.json();
         }
 
-        async getMusicUrl(id, source, quality = '999') {
+        async getMusicUrl(id, source, quality = '320k') {
             const resp = await fetch(`${this.baseUrl}?types=url&id=${id}&source=${source}&br=${quality}`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
-            // Return the URL provided by the API directly so the audio element can play it.
+            // 返回 API 提供的 URL，可能需要通过代理处理
             return data;
         }
 
