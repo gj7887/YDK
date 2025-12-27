@@ -40,10 +40,8 @@ class MusicAPI {
     // 搜索音乐或专辑
     async search(keyword, page = 1, limit = 20, source = 'netease', searchType = 'song') {
         try {
-            // 如果搜索类型为专辑，在源后添加 "_album"
-            const searchSource = searchType === 'album' ? `${source}_album` : source;
-            
-            const url = `${this.baseUrl}?types=search&count=${limit}&source=${searchSource}&pages=${page}&name=${encodeURIComponent(keyword)}`;
+            // 对于新API，不需要添加 "_album" 后缀，直接使用 source
+            const url = `${this.baseUrl}?types=search&count=${limit}&source=${source}&page=${page}&name=${encodeURIComponent(keyword)}`;
             const response = await fetch(url);
             
             if (!response.ok) {
@@ -65,9 +63,17 @@ class MusicAPI {
     }
 
     // 获取音乐URL
-    async getMusicUrl(id, source, quality = '999') {
+    async getMusicUrl(id, source, quality = '320k') {
         try {
-            const response = await fetch(`${this.baseUrl}?types=url&id=${id}&source=${source}&br=${quality}`);
+            // 新 API 支持的音质: 128k, 320k, flac, flac24bit
+            // 如果传入的是数字，转换为 k 后缀格式
+            let br = quality;
+            if (!isNaN(quality)) {
+                // 如果是纯数字，转换为 k 格式
+                br = quality === '999' ? '320k' : `${quality}k`;
+            }
+            
+            const response = await fetch(`${this.baseUrl}?types=url&id=${id}&source=${source}&br=${br}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -79,9 +85,10 @@ class MusicAPI {
                 throw new Error(data.error);
             }
             
-            // 如果返回了URL，将其包装在代理中
-            if (data.url) {
-                data.url = `/api/music-proxy?target=${encodeURIComponent(data.url)}`;
+            // 新 API 在响应中返回 URL，或需要处理重定向
+            // 如果 API 返回了 URL，将其包装在代理中以处理 CORS
+            if (data.data && data.data.url) {
+                data.data.url = `/api/music-proxy?target=${encodeURIComponent(data.data.url)}`;
             }
             return data;
         } catch (error) {
@@ -105,9 +112,8 @@ class MusicAPI {
                 throw new Error(data.error);
             }
             
-            // 返回包含原文歌词和中文翻译的数据
-            // data.lyric - 原语种歌词 (LRC格式)
-            // data.tlyric - 中文翻译歌词 (可选, LRC格式)
+            // 新 API 返回歌词内容在 data.lrc 中（LRC 格式）
+            // 如果有翻译，会在 data.tlyric 中（可选）
             return data;
         } catch (error) {
             console.error('获取歌词失败:', error);

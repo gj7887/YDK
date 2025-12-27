@@ -1,6 +1,6 @@
 import musicAPI from "../../src/api/music.js";
 
-const API_BASE_URL = "https://music-api.gdstudio.xyz/api.php";
+const API_BASE_URL = "https://music-dl.sayqz.com/api";
 
 // 允许的安全响应头
 const SAFE_RESPONSE_HEADERS = [
@@ -107,25 +107,62 @@ async function proxyApiRequest(url, request, env) {
     // 构建 API 请求 URL
     const apiUrl = new URL(API_BASE_URL);
     
-    // 复制查询参数（排除 target 和 callback）
-    url.searchParams.forEach((value, key) => {
-      if (key !== "target" && key !== "callback") {
-        apiUrl.searchParams.set(key, value);
-      }
-    });
+    // 映射查询参数到新的 API 规格
+    const types = url.searchParams.get("types");
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const count = parseInt(url.searchParams.get("count") || "20", 10);
+    
+    // 根据原始的 types 参数映射到新 API 的 type 参数
+    let mappedType = types;
+    if (types === "search") {
+      mappedType = "search";
+      const source = url.searchParams.get("source") || "netease";
+      const keyword = url.searchParams.get("name") || "";
+      const limit = url.searchParams.get("count") || "20";
+      
+      apiUrl.searchParams.set("source", source);
+      apiUrl.searchParams.set("type", "search");
+      apiUrl.searchParams.set("keyword", keyword);
+      apiUrl.searchParams.set("limit", limit);
+    } else if (types === "url") {
+      const id = url.searchParams.get("id");
+      const source = url.searchParams.get("source") || "netease";
+      const br = url.searchParams.get("br") || "320k";
+      
+      apiUrl.searchParams.set("source", source);
+      apiUrl.searchParams.set("id", id);
+      apiUrl.searchParams.set("type", "url");
+      apiUrl.searchParams.set("br", br);
+    } else if (types === "lyric") {
+      const id = url.searchParams.get("id");
+      const source = url.searchParams.get("source") || "netease";
+      
+      apiUrl.searchParams.set("source", source);
+      apiUrl.searchParams.set("id", id);
+      apiUrl.searchParams.set("type", "lrc");
+    } else if (types === "pic") {
+      const id = url.searchParams.get("id");
+      const source = url.searchParams.get("source") || "netease";
+      
+      apiUrl.searchParams.set("source", source);
+      apiUrl.searchParams.set("id", id);
+      apiUrl.searchParams.set("type", "pic");
+    } else {
+      // 默认: 复制所有查询参数
+      url.searchParams.forEach((value, key) => {
+        if (key !== "target" && key !== "callback") {
+          apiUrl.searchParams.set(key, value);
+        }
+      });
+    }
     
     // 验证必要参数
-    if (!apiUrl.searchParams.has("types")) {
-      return new Response(JSON.stringify({ error: "Missing types parameter" }), {
+    if (!apiUrl.searchParams.has("type")) {
+      return new Response(JSON.stringify({ error: "Missing type parameter" }), {
         status: 400,
         headers: { "Content-Type": "application/json" }
       });
     }
-    
-    // 获取查询参数用于后续处理
-    const types = apiUrl.searchParams.get("types");
-    const page = parseInt(url.searchParams.get("page") || "1", 10);
-    const count = parseInt(url.searchParams.get("count") || "20", 10);
     
     // 添加超时控制
     const controller = new AbortController();
@@ -140,6 +177,32 @@ async function proxyApiRequest(url, request, env) {
     });
     
     clearTimeout(timeoutId);
+    
+    // 处理 URL 类型的 302 重定向
+    if (mappedType === "url" && upstream.status === 302) {
+      const locationUrl = upstream.headers.get("location");
+      const headers = createCorsHeaders(upstream.headers);
+      headers.set("Content-Type", "application/json; charset=utf-8");
+      headers.set("Cache-Control", "public, max-age=3600");
+      
+      const xSourceSwitch = upstream.headers.get("x-source-switch");
+      const responseData = {
+        code: 200,
+        message: "success",
+        data: {
+          url: locationUrl
+        }
+      };
+      
+      if (xSourceSwitch) {
+        responseData.data.sourceSwitch = xSourceSwitch;
+      }
+      
+      return new Response(JSON.stringify(responseData), {
+        status: 200,
+        headers
+      });
+    }
     
     // 处理响应
     const headers = createCorsHeaders(upstream.headers);
@@ -166,18 +229,6 @@ async function proxyApiRequest(url, request, env) {
         status: 502,
         headers: { "Content-Type": "application/json" }
       });
-    }
-    
-    // 搜索请求格式转换
-    if (types === "search") {
-      if (Array.isArray(data)) {
-        data = {
-          songs: data,
-          page: page,
-          total_pages: Math.ceil((data.length || 0) / count),
-          total: data.length || 0
-        };
-      }
     }
     
     // 设置缓存策略
