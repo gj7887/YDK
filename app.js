@@ -237,6 +237,12 @@ class MusicPlayerApp {
         if (importFileInput) {
             importFileInput.addEventListener('change', (e) => this.handleImportFile(e));
         }
+        
+        // 新增：API测试功能
+        const testAPIBtn = document.getElementById('testAPIBtn');
+        if (testAPIBtn) {
+            testAPIBtn.addEventListener('click', () => this.testAPI());
+        }
     }
 
     initPlayerEvents() {
@@ -597,21 +603,32 @@ class MusicPlayerApp {
             // 设置音频源并播放（优先直接播放远程 URL）
             this.audioPlayer.src = urlData.url;
             try {
-                await this.audioPlayer.play();
+                const playPromise = this.audioPlayer.play();
+                if (playPromise !== undefined) {
+                    await playPromise;
+                    this.isPlaying = true;
+                    document.getElementById('playBtn').textContent = '⏸';
+                }
             } catch (playErr) {
                 console.warn('直接播放失败，尝试通过代理播放：', playErr);
                 // 回退到通过本地代理中转播放（同源）
                 try {
                     const proxied = `/api/music-proxy?target=${encodeURIComponent(urlData.url)}`;
                     this.audioPlayer.src = proxied;
-                    await this.audioPlayer.play();
+                    const proxyPlayPromise = this.audioPlayer.play();
+                    if (proxyPlayPromise !== undefined) {
+                        await proxyPlayPromise;
+                        this.isPlaying = true;
+                        document.getElementById('playBtn').textContent = '⏸';
+                    }
                 } catch (proxyErr) {
                     console.error('通过代理播放也失败:', proxyErr);
+                    // 确保播放状态被正确重置
+                    this.isPlaying = false;
+                    document.getElementById('playBtn').textContent = '▶';
                     throw proxyErr;
                 }
             }
-            this.isPlaying = true;
-            document.getElementById('playBtn').textContent = '⏸';
             
             // 获取并显示歌词
             this.loadLyrics();
@@ -993,11 +1010,15 @@ class MusicPlayerApp {
     }
 
     // 修改：处理歌曲结束事件
-    handleSongEnd() {
+    async handleSongEnd() {
         switch (this.playMode) {
             case 'single':
                 // 单曲循环，重新播放当前歌曲
-                this.audioPlayer.play();
+                try {
+                    await this.audioPlayer.play();
+                } catch (error) {
+                    console.error('单曲循环播放失败:', error);
+                }
                 break;
             case 'random':
                 // 随机播放，选择下一首随机歌曲
@@ -1217,6 +1238,187 @@ class MusicPlayerApp {
             artwork: artwork
         });
     }
+    
+    // 新增：测试API功能
+    async testAPI() {
+        const testContainer = document.getElementById('apiTestResults');
+        if (!testContainer) {
+            console.log('API测试结果容器不存在');
+            return;
+        }
+        
+        testContainer.innerHTML = '<div class="api-test-loading">正在测试API...</div>';
+        
+        const results = [];
+        
+        // 测试搜索API
+        try {
+            const searchResults = await musicAPI.search('test', 1, 5, this.currentSource, 'song');
+            results.push({
+                api: '搜索API',
+                status: searchResults && searchResults.songs ? '成功' : '失败',
+                data: searchResults
+            });
+        } catch (error) {
+            results.push({
+                api: '搜索API',
+                status: '失败',
+                error: error.message
+            });
+        }
+        
+        // 测试获取音乐URL API
+        try {
+            // 使用一个示例ID进行测试，实际使用时可能需要根据当前源选择合适的测试ID
+            const sources = musicAPI.getSources();
+            const testSongId = this.getTestSongIdForSource(this.currentSource);
+            if (testSongId) {
+                const urlData = await musicAPI.getMusicUrl(testSongId, this.currentSource, '999');
+                results.push({
+                    api: '音乐URL API',
+                    status: urlData && urlData.url ? '成功' : '失败',
+                    data: urlData
+                });
+            } else {
+                results.push({
+                    api: '音乐URL API',
+                    status: '跳过',
+                    message: '无法确定测试歌曲ID'
+                });
+            }
+        } catch (error) {
+            results.push({
+                api: '音乐URL API',
+                status: '失败',
+                error: error.message
+            });
+        }
+        
+        // 测试获取专辑图API
+        try {
+            const testPicId = this.getTestPicIdForSource(this.currentSource);
+            if (testPicId) {
+                const picData = await musicAPI.getPic(testPicId, this.currentSource, '300');
+                results.push({
+                    api: '专辑图API',
+                    status: picData && picData.url ? '成功' : '失败',
+                    data: picData
+                });
+            } else {
+                results.push({
+                    api: '专辑图API',
+                    status: '跳过',
+                    message: '无法确定测试图片ID'
+                });
+            }
+        } catch (error) {
+            results.push({
+                api: '专辑图API',
+                status: '失败',
+                error: error.message
+            });
+        }
+        
+        // 测试获取歌词API
+        try {
+            const testLyricId = this.getTestLyricIdForSource(this.currentSource);
+            if (testLyricId) {
+                const lyricData = await musicAPI.getLyrics(testLyricId, this.currentSource);
+                results.push({
+                    api: '歌词API',
+                    status: lyricData && (lyricData.lyric || lyricData.tlyric) ? '成功' : '失败',
+                    data: lyricData
+                });
+            } else {
+                results.push({
+                    api: '歌词API',
+                    status: '跳过',
+                    message: '无法确定测试歌词ID'
+                });
+            }
+        } catch (error) {
+            results.push({
+                api: '歌词API',
+                status: '失败',
+                error: error.message
+            });
+        }
+        
+        // 显示测试结果
+        this.displayAPITestResults(results, testContainer);
+    }
+    
+    // 辅助函数：根据数据源获取测试歌曲ID
+    getTestSongIdForSource(source) {
+        // 这里可以根据不同数据源提供测试ID
+        const testIds = {
+            'netease': '1437168', // 网易云音乐的测试ID
+            'kuwo': '636123', // 酷我的测试ID
+            'kugou': '2a34224b7c27870c3e5b8a7d6c9e8f7a', // 酷狗的测试ID
+            'qq': '000000000000000' // QQ音乐的测试ID
+        };
+        return testIds[source] || null;
+    }
+    
+    // 辅助函数：根据数据源获取测试图片ID
+    getTestPicIdForSource(source) {
+        // 这里可以根据不同数据源提供测试图片ID
+        const testPicIds = {
+            'netease': '109951164', // 网易云音乐的测试图片ID
+            'kuwo': '636123', // 酷我的测试图片ID
+            'kugou': '2a34224b7c27870c3e5b8a7d6c9e8f7a', // 酷狗的测试ID
+            'qq': '000000000000000' // QQ音乐的测试ID
+        };
+        return testPicIds[source] || null;
+    }
+    
+    // 辅助函数：根据数据源获取测试歌词ID
+    getTestLyricIdForSource(source) {
+        // 这里可以根据不同数据源提供测试歌词ID
+        const testLyricIds = {
+            'netease': '1437168', // 网易云音乐的测试歌词ID
+            'kuwo': '636123', // 酷我的测试歌词ID
+            'kugou': '2a34224b7c27870c3e5b8a7d6c9e8f7a', // 酷狗的测试ID
+            'qq': '000000000000000' // QQ音乐的测试ID
+        };
+        return testLyricIds[source] || null;
+    }
+    
+    // 显示API测试结果
+    displayAPITestResults(results, container) {
+        let html = '<div class="api-test-results"><h3>API测试结果</h3>';
+        
+        results.forEach(result => {
+            const statusClass = result.status === '成功' ? 'status-success' : 
+                              result.status === '失败' ? 'status-error' : 'status-warning';
+            
+            html += `
+                <div class="api-test-result">
+                    <div class="api-test-header">
+                        <span class="api-name">${result.api}</span>
+                        <span class="api-status ${statusClass}">${result.status}</span>
+                    </div>
+            `;
+            
+            if (result.error) {
+                html += `<div class="api-error">错误: ${result.error}</div>`;
+            }
+            
+            if (result.message) {
+                html += `<div class="api-message">${result.message}</div>`;
+            }
+            
+            if (result.data) {
+                html += `<details class="api-data"><summary>响应数据</summary><pre>${JSON.stringify(result.data, null, 2)}</pre></details>`;
+            }
+            
+            html += '</div>';
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
 }
 
 // 初始化应用
